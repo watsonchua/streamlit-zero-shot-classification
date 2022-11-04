@@ -4,10 +4,18 @@ import pandas as pd
 import json
 import boto3
 from time import perf_counter
-import plotly.express as px 
+import plotly.express as px
+import toml
 
+secrets = toml.load('.streamlit/secrets.toml')
+aws_access_key_id = secrets['aws_access_key_id']
+aws_secret_access_key = secrets['aws_secret_access_key']
 
-lambda_client = boto3.client('lambda', region_name='ap-southeast-1')
+lambda_client = boto3.client('lambda', 
+            region_name='ap-southeast-1', 
+            aws_access_key_id=aws_access_key_id, 
+            aws_secret_access_key=aws_secret_access_key
+            )
 
 
 # lambda function reads as input event with key 'body' and value stringnified version of query
