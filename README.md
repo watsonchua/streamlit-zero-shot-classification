@@ -1,4 +1,4 @@
-# Dcoument Tagging Using Your Own Labels
+# Document Tagging Using Your Own Labels
 
 1. Copy and paste the text you want to tag into the text box
 2. Enter the labels you want to use in the side bar
