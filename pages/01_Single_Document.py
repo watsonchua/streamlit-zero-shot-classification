@@ -1,3 +1,4 @@
+from io import StringIO
 import streamlit as st
 from streamlit_tags import st_tags, st_tags_sidebar
 import pandas as pd
@@ -23,6 +24,8 @@ lambda_client = boto3.client('lambda',
 # refer to app.py 
 
 def query_lambda(text, labels):
+    print(text)
+    print(labels)
     query = {
         "sequence": text,
         "labels": labels
@@ -47,6 +50,7 @@ def query_lambda(text, labels):
     print('time taken:', end-start)
 
     results = lambda_response['Payload'].read()
+    print(results)
     body = json.loads(results)['body']
     predictions = json.loads(body)['predictions']
 
@@ -62,16 +66,23 @@ def main():
     st.title("Document Tagging: Use your own labels!")
 
 
-    # label container
+    with st.sidebar:
+        with st.container():
+            st.write('## Labels')
+            # st.write('### File Upload')
+            st.write('#### Upload label file (one label per line in .txt format):')
+            uploaded_labels = st.file_uploader('Upload labels', type=['txt'], label_visibility='hidden')
 
-    input_labels = st_tags_sidebar(
-        label='# Enter labels',
-        text='Press enter to add',
-        value=[],
-        suggestions=['Economy', 'Education', 'Politics', 
-        'Current Affairs', 'Crime', 'Housing', 
-        'Sustainability', 'Food']
-    )
+            # st.write('### Manual Entry')
+            
+            input_labels = st_tags(
+                label='#### Enter labels (will be ignored if label file is uploaded):',
+                text='Press enter to add',
+                value=[],
+                suggestions=['Economy', 'Education', 'Politics', 
+                'Current Affairs', 'Crime', 'Housing', 
+                'Sustainability', 'Food']
+            )
 
     input_container = st.container()
     input_text = input_container.text_area("Enter Text", height=300)
@@ -79,14 +90,23 @@ def main():
 
     with st.container():
         if submit:
-            if input_text.strip() and input_labels:
+            selected_labels = None
+            if uploaded_labels is not None:
+                label_text = StringIO(uploaded_labels.getvalue().decode("utf-8")).read()
+                selected_labels = [l.strip() for l in label_text.split('\n')]
+            elif input_labels is not None:
+                selected_labels = input_labels
+
+            if selected_labels is None:
+                st.write("Please make sure that you have uploaded or entered your labels")
+            elif not input_text.strip():
+                st.write("Please enter text")
+            else:            
                 with st.spinner('Processing....'):
-                    predictions = query_lambda(input_text, labels=input_labels)
+                    predictions = query_lambda(input_text, labels=selected_labels)
                     df_predictions = pd.DataFrame(predictions, columns=['Label', 'Score']).sort_values('Score', ascending=False)
                     fig=px.bar(df_predictions, y='Label',x='Score', orientation='h', color='Score')
                 st.write(fig)
-            else:
-                st.write("Please enter both text and labels.")
         
         
 
