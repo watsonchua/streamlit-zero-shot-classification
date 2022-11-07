@@ -3,3 +3,4 @@ plotly
 boto3
 plotly
 pandas
+ftfy
