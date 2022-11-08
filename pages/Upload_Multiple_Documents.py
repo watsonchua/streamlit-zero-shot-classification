@@ -1,6 +1,6 @@
 from io import StringIO
 import streamlit as st
-from streamlit_tags import st_tags, st_tags_sidebar
+from streamlit_tags import st_tags
 import pandas as pd
 import json
 import boto3
@@ -9,8 +9,8 @@ import plotly.express as px
 import toml
 import os
 from datetime import datetime
-from ftfy import fix_text
 from botocore.config import Config
+from ..utils import query_lambda
 
 
 secrets = toml.load('.streamlit/secrets.toml')
@@ -37,43 +37,6 @@ s3_client = boto3.client('s3',
 
 s3_bucket_name = "zero-shot-classification-bucket"
 s3_bucket = boto3.resource('s3').Bucket(s3_bucket_name)
-
-# lambda function reads as input event with key 'body' and value stringnified version of query
-# stringnified version of query is then passed through json.loads again
-# refer to app.py 
-
-def query_lambda(text, labels):
-    query = {
-        "sequence": fix_text(text),
-        "labels": labels
-        }
-
-    query_str = json.dumps(query)
-
-    lambda_payload = {
-            "body": query_str
-        }
-
-    lambda_payload_str = json.dumps(lambda_payload)
-
-
-    start = perf_counter()
-    lambda_response = lambda_client.invoke(
-                        FunctionName="zero-shot-classification-function",
-                        InvocationType='RequestResponse',
-                        Payload=bytes(lambda_payload_str, "utf-8")
-                        )
-    end = perf_counter()
-    print('time taken:', end-start)
-
-    results = lambda_response['Payload'].read()
-    print(results)
-    body = json.loads(results)['body']
-    predictions = json.loads(body)['predictions']
-
-    return predictions
-
-
 
 def main():
     st.set_page_config(
@@ -142,7 +105,7 @@ def main():
                     print(ud)
                     doc_results = {}
                     input_text = StringIO(ud.getvalue().decode("utf-8")).read()                
-                    predictions = query_lambda(input_text, labels=selected_labels)
+                    predictions = query_lambda(input_text, labels=selected_labels, lambda_client=lambda_client)
                     # predictions = [('Economy', 0.5), ('Healthcare', 0.8)]
                     doc_results['filename'] = ud.name
                     doc_results['text'] = input_text
