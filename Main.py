@@ -8,6 +8,10 @@ from time import perf_counter
 import plotly.express as px
 import toml
 from utils import query_lambda
+from botocore.config import Config
+from gensim.summarization.summarizer import summarize
+import re
+
 
 secrets = toml.load('.streamlit/secrets.toml')
 aws_access_key_id = secrets['aws_access_key_id']
@@ -51,6 +55,11 @@ def main():
                 'Sustainability', 'Food']
             )
 
+            multi_label_options = ['Document can have multiple labels', 'One dominant label per document']
+            multi_label_selection = st.radio("Is your document multi-label",
+                                    multi_label_options, label_visibility="hidden")
+            multi_label = multi_label_options.index(multi_label_selection) == 0
+
     input_container = st.container()
     input_text = input_container.text_area("Enter Text", height=300)
     submit = st.button('Submit')
@@ -70,7 +79,10 @@ def main():
                 st.write("Please enter text")
             else:            
                 with st.spinner('Processing....'):
-                    predictions = query_lambda(input_text, labels=selected_labels, lambda_client=lambda_client)
+                    if len(re.split('/s+', input_text)) > 400:
+                        st.write('Input text too long. Summarising.....')
+                        input_text = summarize(input_text, word_count=400)
+                    predictions = query_lambda(input_text, labels=selected_labels, multi_label=multi_label, lambda_client=lambda_client)
                     df_predictions = pd.DataFrame(predictions, columns=['Label', 'Score']).sort_values('Score', ascending=False)
                     fig=px.bar(df_predictions, y='Label',x='Score', orientation='h', color='Score')
                 st.write(fig)

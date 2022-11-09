@@ -7,10 +7,11 @@ from ftfy import fix_text
 # stringnified version of query is then passed through json.loads again
 # refer to app.py 
 
-def query_lambda(text, labels, lambda_client):
+def query_lambda(text, labels, multi_label, lambda_client):
     query = {
         "sequence": fix_text(text),
-        "labels": labels
+        "labels": labels,
+        "multi_label": multi_label
         }
 
     query_str = json.dumps(query)
@@ -37,3 +38,9 @@ def query_lambda(text, labels, lambda_client):
     predictions = json.loads(body)['predictions']
 
     return predictions
+
+def file_download_link(filename, s3_client, s3_bucket_name):
+    location = s3_client.generate_presigned_url('get_object',
+                                     Params={'Bucket': s3_bucket_name, 'Key': filename},
+                                     ExpiresIn=3600)
+    return location

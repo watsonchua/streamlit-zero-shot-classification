@@ -10,7 +10,10 @@ import toml
 import os
 from datetime import datetime
 from botocore.config import Config
-from ..utils import query_lambda
+from utils import query_lambda
+from gensim.summarization.summarizer import summarize
+import re
+
 
 
 secrets = toml.load('.streamlit/secrets.toml')
@@ -66,6 +69,11 @@ def main():
                 'Sustainability', 'Food']
             )
 
+            multi_label_options = ['Document can have multiple labels', 'One dominant label per document']
+            multi_label_selection = st.radio("Is your document multi-label",
+                                    multi_label_options, label_visibility="hidden")
+            multi_label = multi_label_options.index(multi_label_selection) == 0
+
 
 
 
@@ -104,11 +112,17 @@ def main():
                 for i,ud in enumerate(uploaded_docs):
                     print(ud)
                     doc_results = {}
-                    input_text = StringIO(ud.getvalue().decode("utf-8")).read()                
-                    predictions = query_lambda(input_text, labels=selected_labels, lambda_client=lambda_client)
+                    input_text = StringIO(ud.getvalue().decode("utf-8")).read()
+                    if len(re.split('/s+', input_text)) > 400:
+                        st.write('Input text too long. Summarising.....')
+                        summarized_text = summarize(input_text, word_count=400)
+                    else:
+                        summarized_text = input_text
+                    predictions = query_lambda(summarized_text, labels=selected_labels, multi_label=multi_label, lambda_client=lambda_client)
                     # predictions = [('Economy', 0.5), ('Healthcare', 0.8)]
                     doc_results['filename'] = ud.name
                     doc_results['text'] = input_text
+                    doc_results['summarized_text'] = summarized_text
                     doc_results.update({pred: score for pred,score in predictions})
                     doc_progress.progress((i+1)/len(uploaded_docs))
                     results.append(doc_results)
@@ -158,11 +172,7 @@ def main():
                     st.write(fig)
 
     
-def file_download_link(filename):
-    location = s3_client.generate_presigned_url('get_object',
-                                     Params={'Bucket': s3_bucket_name, 'Key': filename},
-                                     ExpiresIn=3600)
-    return location
+
 
 
 
