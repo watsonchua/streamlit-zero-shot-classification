@@ -1,7 +1,6 @@
-streamlit-tags
-plotly
-boto3
-plotly
-pandas
-ftfy
-gensim
+streamlit-tags==1.2.8
+boto3==1.24.0
+plotly==5.11.0
+pandas==1.4.2
+ftfy==5.8
+gensim==3.8.3
